@@ -21,6 +21,7 @@ do
 		if poolParent == nil then
 			poolParent = Workspace
 		end
+		self.capacity = capacity
 		self.poolParent = poolParent
 		self.pool = {}
 		self.inUse = {}
@@ -57,16 +58,20 @@ do
 		end
 	end
 	function ObjectPool:get()
+		local _result = self.logger
+		if _result ~= nil then
+			_result:Verbose("Getting object from Object Pool.")
+		end
 		if #self.pool == 0 then
 			self:expand()
 		end
 		local _exp = self.pool
 		-- ▼ Array.pop ▼
 		local _length = #_exp
-		local _result = _exp[_length]
+		local _result_1 = _exp[_length]
 		_exp[_length] = nil
 		-- ▲ Array.pop ▲
-		local object = _result
+		local object = _result_1
 		local _inUse = self.inUse
 		-- ▼ Array.push ▼
 		_inUse[#_inUse + 1] = object
@@ -75,6 +80,10 @@ do
 	end
 	function ObjectPool:release(object)
 		if not (table.find(self.inUse, object) ~= nil) then
+			local _result = self.logger
+			if _result ~= nil then
+				_result:Error("Unable to release object. {@Object} is not part of an Object Pool.", object)
+			end
 			return nil
 		end
 		local _inUse = self.inUse
@@ -106,6 +115,15 @@ do
 		object.Parent = self.poolParent
 	end
 	function ObjectPool:expand(increment)
+		local _condition = increment
+		if _condition == nil then
+			_condition = self.expansionIncrement
+		end
+		self.capacity += _condition
+		local _result = self.logger
+		if _result ~= nil then
+			_result:Verbose("Expanding Object Pool capacity to {Capacity}.", self.capacity)
+		end
 		do
 			local i = 0
 			local _shouldIncrement = false
@@ -116,11 +134,11 @@ do
 					_shouldIncrement = true
 				end
 				local _exp = i
-				local _condition = increment
-				if _condition == nil then
-					_condition = self.expansionIncrement
+				local _condition_1 = increment
+				if _condition_1 == nil then
+					_condition_1 = self.expansionIncrement
 				end
-				if not (_exp < _condition) then
+				if not (_exp < _condition_1) then
 					break
 				end
 				local object = self.objectFactory()
@@ -142,6 +160,10 @@ do
 	function ObjectPool:destroy(destroyInUse)
 		if destroyInUse == nil then
 			destroyInUse = false
+		end
+		local _result = self.logger
+		if _result ~= nil then
+			_result:Verbose("Destroying Object Pool with {@Pool}" .. (destroyInUse and " and {@InUse}" or ""), self.pool, self.inUse)
 		end
 		local _pool = self.pool
 		local _arg0 = function(v, i)
@@ -165,6 +187,8 @@ do
 			_arg0_1(_v, _k - 1, _inUse)
 		end
 		-- ▲ ReadonlyArray.forEach ▲
+		-- 🤷
+		-- eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		-- @ts-ignore
 		self = nil
 	end
