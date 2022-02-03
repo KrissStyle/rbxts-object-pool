@@ -29,7 +29,6 @@
   },
   "dependencies": {
     "@rbxts/log": "^0.5.0-beta.1",
-    "@rbxts/ping": "^2.3.5",
     "@rbxts/services": "^1.2.0"
   }
 }

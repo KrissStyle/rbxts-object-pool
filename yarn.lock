@@ -69,11 +69,6 @@
   resolved "https://registry.yarnpkg.com/@rbxts/message-templates/-/message-templates-0.3.2.tgz#85169980cf73f659282aa9846290ceaf06967167"
   integrity sha512-79onYskH3pgrBT73Zs+biQ31vAVvupKQaxGNWGjyGsxwNhO2YaN/qkut0bvOshaGa+ZzqAXApRVrN8ifIMPiMQ==
 
-"@rbxts/ping@^2.3.5":
-  version "2.3.5"
-  resolved "https://registry.yarnpkg.com/@rbxts/ping/-/ping-2.3.5.tgz#8b396f03471bd0b987241ebf5f7d44f30da7aa13"
-  integrity sha512-gLV8XR3vlQf5R0WFfErI9SmqTOvxr1oH2MlBexQsei9LzyN0kH4dfPuoo1a6LQlPl7MS3vY2eROVPdJkmrSgPg==
-
 "@rbxts/services@^1.2.0":
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/@rbxts/services/-/services-1.2.0.tgz#5dcc980fc937d5634dab31f8e564f6565d78ea47"
