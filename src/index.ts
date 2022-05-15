@@ -1,6 +1,7 @@
-import { ObjectPool } from 'ObjectPool'
+import { ObjectPool } from './ObjectPool'
 
-export * from './ObjectPool'
-export * from './InstancePool'
+export { IObjectPool } from './IObjectPool'
+export { ObjectPool, ObjectPoolOptions } from './ObjectPool'
+export { InstancePool, InstancePoolOptions } from './InstancePool'
 
 export default ObjectPool

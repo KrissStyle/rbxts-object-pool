@@ -9,5 +9,6 @@
 	},
 	"eslint.run": "onType",
 	"eslint.format.enable": true,
+	"eslint.workingDirectories": ["src", "test"],
 	"typescript.tsdk": "node_modules/typescript/lib"
 }

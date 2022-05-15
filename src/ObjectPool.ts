@@ -1,35 +1,38 @@
-import { Logger } from '@rbxts/log'
+import { assertNotDestroyed, warnAlreadyDestroyed } from '@rbxts/destroyed-instance-logging'
+import { IObjectPool } from './IObjectPool'
 
 export interface ObjectPoolOptions<T> {
-	initialCapacity?: number
+	initialSize?: number
 	expansionIncrement?: number
 
 	factory: () => T
 	onGet?: (object: T) => void
 	onRelease?: (object: T) => void
 	onDispose?: (object: T) => void
-
-	//debug
-	logger?: Logger
 }
 
-export class ObjectPool<T> {
-	private readonly pool = new Array<T>()
-	private readonly active = new Array<T>()
-
+export class ObjectPool<T> implements IObjectPool<T> {
 	public expansionIncrement: number
 
-	private readonly factory: () => T
-	private readonly onGet?: (object: T) => void
-	private readonly onRelease?: (object: T) => void
-	private readonly onDispose?: (object: T) => void
+	private readonly inactive
+	private readonly active
+	private readonly factory
+	private readonly onGet
+	private readonly onRelease
+	private readonly onDispose
 
-	public logger?: Logger
+	private isDestroyed = false
 
-	private disposed = false
-
-	constructor(options: ObjectPoolOptions<T>) {
-		const { initialCapacity = 100, expansionIncrement = 20, factory, onGet, onRelease, onDispose, logger } = options
+	constructor({
+		initialSize = 10,
+		expansionIncrement = 5,
+		factory,
+		onGet,
+		onRelease,
+		onDispose,
+	}: ObjectPoolOptions<T>) {
+		this.inactive = new Array<T>(initialSize)
+		this.active = new Array<T>()
 
 		this.expansionIncrement = expansionIncrement
 
@@ -38,116 +41,67 @@ export class ObjectPool<T> {
 		this.onRelease = onRelease
 		this.onDispose = onDispose
 
-		this.logger = logger
-
-		for (let i = 0; i < initialCapacity; i++) {
-			this.create()
+		for (let i = 0; i < initialSize; i++) {
+			this.inactive.push(factory())
 		}
 	}
 
-	public availableSize(): number {
-		return this.pool.size()
+	public inactiveSize(): number {
+		return this.inactive.size()
 	}
 
 	public activeSize(): number {
 		return this.active.size()
 	}
 
-	public size(): number {
-		return this.pool.size() + this.active.size()
-	}
-
-	private create() {
-		if (this.disposed) throw this.logger?.Error('Object Pool is disposed')
-
-		this.pool.push(this.factory())
+	public totalSize(): number {
+		return this.inactive.size() + this.active.size()
 	}
 
 	public get(): T {
-		if (this.disposed) throw this.logger?.Error('Object Pool is disposed')
+		assertNotDestroyed(this.isDestroyed, this)
+		if (this.inactive.isEmpty()) this.expand()
 
-		if (this.pool.isEmpty()) this.expand()
-
-		const object = this.pool.pop() as T
-
-		if (this.onGet) this.onGet(object)
-
+		const object = this.inactive.pop() as T
 		this.active.push(object)
-
+		this.onGet?.(object)
 		return object
 	}
 
 	public release(object: T) {
-		if (!this.active.includes(object))
-			throw this.logger?.Error('Unable to release object. {@Object} is not part of an Object Pool.', object)
+		assert(this.active.includes(object), 'Object is not part of the pool')
+		assert(!this.inactive.includes(object), 'Object has already been released to the pool')
 
 		this.active.remove(this.active.findIndex((v) => v === object))
-
-		if (this.onRelease) this.onRelease(object)
-
-		if (this.disposed && this.onDispose) {
-			this.onDispose(object)
-			return
-		}
-
-		this.pool.push(object)
-	}
-
-	public getN(amount: number): T[] {
-		if (this.disposed) throw this.logger?.Error('Object Pool is disposed')
-
-		if (this.pool.size() < amount) this.expand(amount - this.pool.size())
-
-		const objects = []
-
-		for (let i = 0; i < amount; i++) {
-			objects.push(this.get())
-		}
-
-		return objects
-	}
-
-	public releaseN(objects: T[]) {
-		objects.forEach((object) => {
-			this.release(object)
-		})
+		if (!this.isDestroyed) this.inactive.push(object)
+		this.onRelease?.(object)
+		if (this.isDestroyed) this.onDispose?.(object)
 	}
 
 	public expand(increment: number = this.expansionIncrement) {
-		if (this.disposed) throw this.logger?.Error('Object Pool is disposed')
+		assertNotDestroyed(this.isDestroyed, this)
+		assert(increment >= 0, 'Increment must be greater than 0')
 
-		this.logger?.Debug(
-			'Expanding Object Pool capacity by {Increment}. Expect capacity to be {@Capacity}',
-			increment,
-			this.size() + increment,
-		)
+		warn(`Expanding pool capacity by ${increment}. New capacity is ${this.totalSize() + increment}`)
 
 		for (let i = 0; i < increment; i++) {
-			this.create()
+			this.inactive.push(this.factory())
 		}
 	}
 
-	public isDisposed(): boolean {
-		return this.disposed
-	}
+	public destroy() {
+		if (this.isDestroyed) {
+			warnAlreadyDestroyed(this)
+			return
+		}
+		this.isDestroyed = true
 
-	public dispose(disposeActive = false) {
-		this.disposed = true
+		if (this.onDispose) {
+			for (const object of this.inactive) {
+				this.onDispose(object)
+			}
+		}
 
-		this.logger?.Debug(
-			'Destroying Object Pool with {@Pool}' + (disposeActive ? ' and {@Active}' : ''),
-			this.pool,
-			this.active,
-		)
-
-		this.pool.forEach((object, i) => {
-			if (this.onDispose) this.onDispose(object)
-			this.pool.remove(i)
-		})
-
-		this.active.forEach((object, i) => {
-			if (disposeActive && this.onDispose) this.onDispose(object)
-			this.pool.remove(i)
-		})
+		this.inactive.clear()
 	}
 }
